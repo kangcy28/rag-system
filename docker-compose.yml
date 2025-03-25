@@ -1,0 +1,43 @@
+services:
+  # Backend and database are containerized, frontend is developed locally
+
+  # Backend Python FastAPI application
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    networks:
+      - app-network
+    volumes:
+      - ./backend:/app
+    environment:
+      - DB_SERVER=db
+      - DB_PORT=1433
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - CORS_ORIGINS=http://localhost:8080
+
+  # MSSQL Database
+  db:
+    build: ./database
+    ports:
+      - "1433:1433"
+    networks:
+      - app-network
+    volumes:
+      - mssql-data:/var/opt/mssql
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=${DB_PASSWORD}
+      - MSSQL_PID=Express
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mssql-data:
