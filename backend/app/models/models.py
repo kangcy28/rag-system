@@ -2,6 +2,10 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
+class DocumentProcessingOptions(BaseModel):
+    """Model for document processing options."""
+    chunk_size: int = 500
+    chunk_overlap: int = 50
 
 class Document(BaseModel):
     """Model for document data."""

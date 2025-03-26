@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     temperature: float = float(os.getenv("TEMPERATURE", "0.7"))
     max_tokens: int = int(os.getenv("MAX_TOKENS", "1000"))
     
+    # LangChain chunking defaults
+    default_chunk_size: int = int(os.getenv("DEFAULT_CHUNK_SIZE", "500"))
+    default_chunk_overlap: int = int(os.getenv("DEFAULT_CHUNK_OVERLAP", "50"))
+
     # Connection string for SQL Server
     @property
     def db_connection_string(self) -> str:

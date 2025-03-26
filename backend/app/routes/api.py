@@ -5,7 +5,8 @@ from typing import List, Dict, Any
 from app.database.connection import get_db
 from app.models.models import (
     QueryRequest, QueryResponse, Document, Chunk,
-    DocumentCreate, DocumentUpdate, ChunkCreate, ChunkUpdate
+    DocumentCreate, DocumentUpdate, ChunkCreate,
+    DocumentProcessingOptions  # Import the model from models.py
 )
 from app.database.repository import DocumentRepository, ChunkRepository
 from app.services.rag_service import RAGService
@@ -151,13 +152,21 @@ async def create_chunk(
     )
     return ChunkRepository.create_chunk(db, chunk_model)
 
-@router.post("/documents/{document_id}/process", response_model=Dict[str, Any])
+@router.post("/documents/{document_id}/process", response_model=None)
 async def process_document(
     document_id: int,
+    options: DocumentProcessingOptions,
     db: Session = Depends(get_db)
 ):
     """
-    Process a document - create chunks for the document.
+    Process a document using LangChain text splitters to create chunks.
+    
+    Args:
+        document_id: The document ID to process
+        options: Document processing options (chunk size and overlap)
+        
+    Returns:
+        Dict with processing results
     """
     # Check if document exists
     document = DocumentRepository.get_document_by_id(db, document_id)
@@ -167,12 +176,29 @@ async def process_document(
             detail=f"Document with ID {document_id} not found"
         )
     
+    # Delete existing chunks for this document
+    # This ensures we don't have duplicate chunks when reprocessing
+    delete_query = """
+    DELETE FROM Chunks
+    WHERE document_id = :document_id
+    """
+    db.execute(delete_query, {"document_id": document_id})
+    db.commit()
+    
+    # Process document with LangChain
     rag_service = RAGService(db)
-    num_chunks = rag_service.chunk_document(document_id)
+    num_chunks = rag_service.chunk_document(
+        document_id, 
+        chunk_size=options.chunk_size, 
+        overlap=options.chunk_overlap
+    )
     
     return {
         "document_id": document_id,
+        "document_title": document["title"],
         "chunks_created": num_chunks,
+        "chunk_size": options.chunk_size,
+        "chunk_overlap": options.chunk_overlap,
         "status": "success",
         "message": f"Successfully processed document and created {num_chunks} chunks"
     }
