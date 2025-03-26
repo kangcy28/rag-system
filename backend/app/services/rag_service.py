@@ -2,7 +2,7 @@ import time
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any, Optional
 
-from app.services.openai_service import OpenAIService
+from app.services.langchain_service import LangChainService
 from app.database.repository import ChunkRepository, DocumentRepository
 from app.models.models import QueryRequest, QueryResponse, RetrievedChunk
 
@@ -12,11 +12,11 @@ class RAGService:
     def __init__(self, db: Session):
         """Initialize the RAG service."""
         self.db = db
-        self.openai_service = OpenAIService()
+        self.langchain_service = LangChainService(db)
     
     def process_query(self, query_request: QueryRequest) -> QueryResponse:
         """
-        Process a query using the RAG approach.
+        Process a query using the RAG approach with LangChain.
         
         Args:
             query_request (QueryRequest): The query request object
@@ -26,20 +26,16 @@ class RAGService:
         """
         start_time = time.time()
         
-        # Retrieve relevant chunks
-        retrieved_chunks = ChunkRepository.retrieve_chunks_for_query(
-            self.db, 
+        # Retrieve relevant chunks using keyword matching
+        retrieved_chunks = self.langchain_service.retrieve_chunks(
             query_request.query, 
             max_chunks=query_request.max_chunks
         )
         
-        # Extract chunk contents for context
-        context_texts = [chunk["content"] for chunk in retrieved_chunks]
-        
-        # Generate response using OpenAI with context
-        response_data = self.openai_service.generate_response(
+        # Generate response using LangChain with context
+        response_data = self.langchain_service.generate_response(
             query_request.query, 
-            context=context_texts
+            context_chunks=retrieved_chunks
         )
         
         # Format retrieved chunks for response
@@ -62,8 +58,8 @@ class RAGService:
         # Create metadata
         metadata = {
             "model": response_data.get("model"),
-            "tokens_used": response_data.get("tokens_used"),
-            "chunks_retrieved": len(retrieved_chunks)
+            "chunks_retrieved": len(retrieved_chunks),
+            "retrieval_method": "keyword_matching"  # Updated to reflect new approach
         }
         
         # Save query and response to database
@@ -85,9 +81,9 @@ class RAGService:
         
         return response
     
-    def chunk_document(self, document_id: int, chunk_size: int = 200, overlap: int = 50) -> int:
+    def chunk_document(self, document_id: int, chunk_size: int = 500, overlap: int = 50) -> int:
         """
-        Chunk a document and store the chunks in the database.
+        Chunk a document using LangChain text splitters and store the chunks in the database.
         
         Args:
             document_id (int): The document ID to chunk
@@ -97,41 +93,9 @@ class RAGService:
         Returns:
             int: The number of chunks created
         """
-        # Get the document
-        document = DocumentRepository.get_document_by_id(self.db, document_id)
-        if not document:
-            return 0
-        
-        # Simple text chunking (in a real implementation, this would be more sophisticated)
-        text = document["content"]
-        chunks = []
-        
-        # Create chunks with overlap
-        for i in range(0, len(text), chunk_size - overlap):
-            if i > 0:  # Skip the first overlap
-                start = i
-            else:
-                start = 0
-                
-            end = min(i + chunk_size, len(text))
-            chunk_text = text[start:end]
-            
-            if chunk_text.strip():  # Only add non-empty chunks
-                chunks.append({
-                    "document_id": document_id,
-                    "content": chunk_text,
-                    "chunk_order": len(chunks) + 1
-                })
-        
-        # Insert chunks into database
-        from app.models.models import Chunk
-        chunk_objects = [
-            Chunk(
-                document_id=chunk["document_id"],
-                content=chunk["content"],
-                chunk_order=chunk["chunk_order"]
-            ) 
-            for chunk in chunks
-        ]
-        
-        return ChunkRepository.create_chunks_batch(self.db, chunk_objects)
+        # Use LangChain service to process document
+        return self.langchain_service.process_document(
+            document_id=document_id,
+            chunk_size=chunk_size,
+            chunk_overlap=overlap
+        )

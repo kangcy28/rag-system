@@ -41,6 +41,11 @@ node_modules/
 /backend/.installed.cfg
 /backend/*.egg
 
+# Ignore Python bytecode files and directories
+__pycache__/
+*.py[cod]
+*$py.class
+
 # Docker volumes data
 data/
 

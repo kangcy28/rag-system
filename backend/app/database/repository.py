@@ -3,6 +3,7 @@ import json
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
+import re
 
 from app.models.models import Document, Chunk, QueryRequest, QueryResponse, RetrievedChunk
 
@@ -178,33 +179,80 @@ class ChunkRepository:
     @staticmethod
     def retrieve_chunks_for_query(db: Session, query_text: str, max_chunks: int = 5) -> List[Dict[str, Any]]:
         """
-        Simple chunk retrieval based on text matching.
-        In a real implementation, this would use embeddings or more sophisticated matching.
+        Simple chunk retrieval based on keyword matching.
+        This replaces the previous embedding-based retrieval.
         """
-        # For simplicity, we use a basic LIKE query
-        # In a real implementation, this would be replaced with vector similarity search
-        query = text("""
+        # Extract keywords from the query
+        keywords = ChunkRepository._extract_keywords(query_text)
+        
+        # Build a dynamic SQL query that searches for any of the keywords
+        where_clauses = []
+        params = {"max_chunks": max_chunks}
+        
+        for i, keyword in enumerate(keywords):
+            param_name = f"keyword_{i}"
+            where_clauses.append(f"c.content LIKE :{param_name}")
+            params[param_name] = f"%{keyword}%"
+        
+        where_clause = " OR ".join(where_clauses) if where_clauses else "1=1"
+        
+        query = text(f"""
             SELECT TOP :max_chunks
                 c.chunk_id, c.document_id, c.content, c.chunk_order,
                 d.title as document_title, d.source as document_source
             FROM Chunks c
             JOIN Documents d ON c.document_id = d.document_id
-            WHERE c.content LIKE :search_text
+            WHERE {where_clause}
             ORDER BY c.chunk_id
         """)
         
-        # Basic search with SQL LIKE
-        search_text = f"%{query_text}%"
-        result = db.execute(query, {"search_text": search_text, "max_chunks": max_chunks})
+        result = db.execute(query, params)
         
         chunks = []
         for row in result:
             row_dict = dict(row._mapping)
-            # Add a mock relevance score (would be calculated properly in a real implementation)
-            row_dict["relevance_score"] = 0.8  # Mock score for demonstration
+            # Calculate a relevance score based on keyword matches
+            relevance_score = ChunkRepository._calculate_relevance_score(row_dict["content"], keywords)
+            row_dict["relevance_score"] = relevance_score
             chunks.append(row_dict)
         
-        return chunks
+        # Sort by relevance score
+        chunks.sort(key=lambda x: x["relevance_score"], reverse=True)
+        
+        return chunks[:max_chunks]
+    
+    @staticmethod
+    def _extract_keywords(text: str) -> List[str]:
+        """Extract keywords from text."""
+        # Remove punctuation and convert to lowercase
+        text = re.sub(r'[^\w\s]', '', text.lower())
+        
+        # Split into words
+        words = text.split()
+        
+        # Remove common stop words
+        stop_words = {"the", "a", "an", "in", "on", "at", "to", "for", "of", "and", "is", "are", "was", "were"}
+        keywords = [word for word in words if word not in stop_words and len(word) > 2]
+        
+        return keywords
+    
+    @staticmethod
+    def _calculate_relevance_score(text: str, keywords: List[str]) -> float:
+        """Calculate a relevance score based on keyword matches."""
+        text = text.lower()
+        score = 0.0
+        
+        for keyword in keywords:
+            if keyword in text:
+                # Add 1 point for each keyword found
+                score += 1.0
+                
+                # Add extra points for multiple occurrences
+                occurrences = text.count(keyword)
+                if occurrences > 1:
+                    score += 0.2 * (occurrences - 1)
+        
+        return score
 
     @staticmethod
     def save_query(db: Session, query_text: str, response_text: str, metadata: Dict = None) -> Dict[str, Any]:

@@ -1,7 +1,7 @@
 # FastAPI and server
 fastapi==0.104.1
 uvicorn==0.23.2
-pydantic==2.4.2
+pydantic==2.7.4
 python-dotenv==1.0.0
 
 # Database - using pymssql instead of pyodbc
@@ -12,11 +12,19 @@ sqlalchemy==2.0.23
 azure-ai-inference==1.0.0b9
 azure-core>=1.29.5
 
+# LangChain
+langchain>=0.3.21
+langchain-openai==0.3.0
+langchain-text-splitters==0.3.7
+langchain-community==0.3.20
+
+# OpenAI
+openai>=1.8.0
+
 # Data processing
 pandas==2.1.2
-numpy==1.26.1
 
 # Additional utilities
 tenacity==8.2.3
-pydantic-settings==2.0.3
+pydantic-settings>=2.4.0,<3.0.0
 python-multipart==0.0.6
