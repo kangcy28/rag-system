@@ -24,18 +24,16 @@ class LangChainService:
         
     def _get_llm_model(self):
         """Get the LLM model."""
-        if True:
-            return AzureChatOpenAI(
-                azure_endpoint="https://bpragtest.openai.azure.com",
-                api_key=settings.openai_api_key,
-                api_version=settings.api_version,
-                azure_deployment=settings.deployment_name,
-                temperature=0.7,
-                max_tokens=5000
-            )
-        else:
-            # For OpenAI integration if needed in the future
-            raise NotImplementedError("Only Azure OpenAI is supported at this time")
+
+        return AzureChatOpenAI(
+            azure_endpoint="https://bpragtest.openai.azure.com",
+            api_key=settings.openai_api_key,
+            api_version=settings.api_version,
+            azure_deployment=settings.deployment_name,
+            temperature=0.7,
+            max_tokens=5000
+        )
+
     
     def process_document(self, document_id: int, chunk_size: int = 500, chunk_overlap: int = 50) -> int:
         """
