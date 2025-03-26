@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
     
     # Azure OpenAI 設置
-    use_azure: bool = os.getenv("USE_AZURE", "False").lower() in ("true", "1", "t")
+    use_azure: bool = os.getenv("USE_AZURE", "True").lower() in ("true", "1", "t")
     deployment_name: str = os.getenv("AZURE_DEPLOYMENT_NAME", "gpt-4o-mini")
     azure_endpoint: str = os.getenv("AZURE_ENDPOINT", "")
     api_version: str = os.getenv("AZURE_API_VERSION", "2024-12-01-preview")

@@ -2,7 +2,7 @@ from typing import List, Dict, Any, Optional
 import numpy as np
 import json
 from sqlalchemy.orm import Session
-
+from sqlalchemy import text
 from langchain_openai import AzureChatOpenAI, AzureOpenAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.prompts import ChatPromptTemplate
@@ -28,7 +28,7 @@ class LangChainService:
         """Get the embeddings model."""
         if settings.use_azure:
             return AzureOpenAIEmbeddings(
-                azure_endpoint="https://bpragtest.openai.azure.com/openai/deployments/gpt-4o-mini",
+                azure_endpoint="https://bpragtest.openai.azure.com",
                 api_key=settings.openai_api_key,
                 api_version=settings.api_version,
                 deployment=settings.deployment_name,  # Using the same deployment for embeddings
@@ -41,7 +41,7 @@ class LangChainService:
         """Get the LLM model."""
         if settings.use_azure:
             return AzureChatOpenAI(
-                azure_endpoint="https://bpragtest.openai.azure.com/openai/deployments/gpt-4o-mini",
+                azure_endpoint="https://bpragtest.openai.azure.com",
                 api_key=settings.openai_api_key,
                 api_version=settings.api_version,
                 azure_deployment=settings.deployment_name,
@@ -110,13 +110,14 @@ class LangChainService:
         # Get all chunks from the database
         # In a production environment with many documents, you would implement
         # a more efficient retrieval strategy
-        query_text = f"""
-        SELECT 
-            c.chunk_id, c.document_id, c.content, c.chunk_order,
-            d.title as document_title, d.source as document_source
-        FROM Chunks c
-        JOIN Documents d ON c.document_id = d.document_id
-        """
+        query_text = text(f"""
+            SELECT 
+                c.chunk_id, c.document_id, c.content, c.chunk_order,
+                d.title as document_title, d.source as document_source
+            FROM Chunks c
+            JOIN Documents d ON c.document_id = d.document_id
+            """)
+
         
         result = self.db.execute(query_text)
         chunks = [dict(row._mapping) for row in result]
