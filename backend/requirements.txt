@@ -15,7 +15,7 @@ azure-core>=1.29.5
 # LangChain
 langchain>=0.3.21
 langchain-openai==0.3.0
-langchain-text-splitters==0.3.7
+langchain-text-splitters==1.1.2
 langchain-community==0.3.20
 
 # OpenAI
