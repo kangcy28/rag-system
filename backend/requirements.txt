@@ -2,7 +2,7 @@
 fastapi==0.104.1
 uvicorn==0.23.2
 pydantic==2.7.4
-python-dotenv==1.0.0
+python-dotenv==1.2.2
 
 # Database - using pymssql instead of pyodbc
 pymssql==2.2.9
